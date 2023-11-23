@@ -54,82 +54,46 @@ def onnx2engine(onnx_path = "/home/lyl/project/tensorrt_demo/model.onnx",engine_
     print("generate file success!")
 
 # 3、使用engine文件推理
-def deploy():
-    # 加载和预处理图像数据
-    image = cv2.imread('image.jpg')
-    resized_image = cv2.resize(image, (256, 256))
-    normalized_image = (resized_image / 255.0).astype(np.float32)
-    # 创建输入Tensor
-    input_shape = (1, 3, 224, 224)  # 假设输入Tensor的形状为(1, 3, 224, 224)
-    input_tensor = np.zeros(input_shape, dtype=np.float32)
-    # 将图像数据复制到输入Tensor中
-    np.copyto(input_tensor, normalized_image.ravel())
+# def deploy():
+#     # 加载和预处理图像数据
+#     image = cv2.imread('image.jpg')
+#     resized_image = cv2.resize(image, (256, 256))
+#     normalized_image = (resized_image / 255.0).astype(np.float32)
+#     # 创建输入Tensor
+#     input_shape = (1, 3, 224, 224)  # 假设输入Tensor的形状为(1, 3, 224, 224)
+#     input_tensor = np.zeros(input_shape, dtype=np.float32)
+#     # 将图像数据复制到输入Tensor中
+#     np.copyto(input_tensor, normalized_image.ravel())
 
 
-    # 创建logger：日志记录器
-    logger = trt.Logger(trt.Logger.WARNING)
-    # 创建runtime并反序列化生成engine
-    with open("/home/lyl/project/tensorrt_demo/model.engine", "rb") as f, trt.Runtime(logger) as runtime:
-        engine = runtime.deserialize_cuda_engine(f.read())
-    h_input = cuda.pagelocked_empty(trt.volume(context.get_binding_shape(0)), dtype=np.float32)
-    h_output = cuda.pagelocked_empty(trt.volume(context.get_binding_shape(1)), dtype=np.float32)
-    # 创建cuda流
-    stream = cuda.Stream()
-    # 创建context并进行推理
-    with engine.create_execution_context() as context:
-        # 分配CPU锁页内存和GPU显存
-        d_input = cuda.mem_alloc(h_input.nbytes)
-        d_output = cuda.mem_alloc(h_output.nbytes)
-        # Transfer input data to the GPU.
-        cuda.memcpy_htod_async(d_input, h_input, stream)
-        # Run inference.
-        context.execute_async_v2(bindings=[int(d_input), int(d_output)], stream_handle=stream.handle)
-        # Transfer predictions back from the GPU.
-        cuda.memcpy_dtoh_async(h_output, d_output, stream)
-        # Synchronize the stream
-        stream.synchronize()
-        # Return the host output. 该数据等同于原始模型的输出数据
-        return h_output
-def deploy2():
-    # 定义输入数据的大小
-    INPUT_H = 256
-    INPUT_W = 256
-    INPUT_C = 3
-    # 分配内存
-    input_data = np.empty((1, INPUT_C, INPUT_H, INPUT_W), dtype=np.float32)
-    output_data = np.empty((1, 4), dtype=np.float32)
-    # 加载和预处理图像
-    image = cv2.imread("/home/lyl/project/tensorrt_demo/crack000664.jpg")
-    image = cv2.resize(image, (INPUT_W, INPUT_H))
-    image = image.astype(np.float32)
-    image = (image / 255.0)  # 归一化
-    # 创建logger：日志记录器
-    logger = trt.Logger(trt.Logger.WARNING)
-    # 创建runtime并反序列化生成engine
-    with open("/home/lyl/project/tensorrt_demo/model.engine", "rb") as f, trt.Runtime(logger) as runtime:
-        engine = runtime.deserialize_cuda_engine(f.read())
-    stream = cuda.Stream()
-    with engine.create_execution_context() as context:
-        # 创建host buffer
-        input_host_buffer = cuda.pagelocked_empty(trt.volume((256,256,3)), dtype=np.float32)
-        # 将数据复制到host buffer中
-        input_host_buffer[:] = image#.transpose((2, 0, 1))  # 转换为CHW格式
-        # 创建device buffer
-        input_device_buffer = cuda.mem_alloc(input_host_buffer.nbytes)
-        output_device_buffer = cuda.mem_alloc(output_data.nbytes)
-        # 将数据从host buffer复制到device buffer中
-        cuda.memcpy_htod(input_device_buffer, input_host_buffer)
-        # 执行推理
-        context.execute(batch_size=1, bindings=[int(input_device_buffer), int(output_device_buffer)])
-        # 获取输出数据
-        cuda.memcpy_dtoh(output_data, output_device_buffer)
-        # 后处理并保存输出图像
-        # output_image = postprocess(output_data)  # 根据需要进行后处理
-        # output_image = (output_image * 255.0).clip(0, 255).astype(np.uint8)  # 还原为0-255范围的像素值
-        cv2.imwrite('/home/lyl/project/tensorrt_demo/output_image.jpg', output_data)
+#     # 创建logger：日志记录器
+#     logger = trt.Logger(trt.Logger.WARNING)
+#     # 创建runtime并反序列化生成engine
+#     with open("/home/lyl/project/tensorrt_demo/model.engine", "rb") as f, trt.Runtime(logger) as runtime:
+#         engine = runtime.deserialize_cuda_engine(f.read())
+#     h_input = cuda.pagelocked_empty(trt.volume(context.get_binding_shape(0)), dtype=np.float32)
+#     h_output = cuda.pagelocked_empty(trt.volume(context.get_binding_shape(1)), dtype=np.float32)
+#     # 创建cuda流
+#     stream = cuda.Stream()
+#     # 创建context并进行推理
+#     with engine.create_execution_context() as context:
+#         # 分配CPU锁页内存和GPU显存
+#         d_input = cuda.mem_alloc(h_input.nbytes)
+#         d_output = cuda.mem_alloc(h_output.nbytes)
+#         # Transfer input data to the GPU.
+#         cuda.memcpy_htod_async(d_input, h_input, stream)
+#         # Run inference.
+#         context.execute_async_v2(bindings=[int(d_input), int(d_output)], stream_handle=stream.handle)
+#         # Transfer predictions back from the GPU.
+#         cuda.memcpy_dtoh_async(h_output, d_output, stream)
+#         # Synchronize the stream
+#         stream.synchronize()
+#         # Return the host output. 该数据等同于原始模型的输出数据
+#         return h_output
 
-# # toonnx()
-# # onnx2engine()
+
+toonnx()
+onnx2engine()
 # deploy2()
 
 
